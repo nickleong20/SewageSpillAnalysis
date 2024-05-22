@@ -107,11 +107,11 @@ ui <- bs4DashPage(
         fluidRow(
           column(
             width = 6,
-            selectInput("startDate", "Select Start Date:", choices = NULL)
+            selectInput("startDate", "Select Start Date:", choices = 2009:2024)
           ),
           column(
             width = 6,
-            selectInput("endDate", "Select End Date:", choices = NULL)
+            selectInput("endDate", "Select End Date:", choices = 2009:2024, selected = 2024)
           )
         )
       )
@@ -176,56 +176,48 @@ ui <- bs4DashPage(
 
 
 server <- function(input, output, session) {
-  # Ensure the dates in the dataset are in Date format
-  sewage_spills_watershed$issuance_date <- as.Date(sewage_spills_watershed$issuance_date, format = "%Y-%m-%d")
-  
-  # Get the minimum and maximum dates
-  min_date <- min(sewage_spills_watershed$year, na.rm = TRUE)
-  max_date <- max(sewage_spills_watershed$year, na.rm = TRUE)
-  
-  # Populate the start and end date choices
+  # Populate start date and end date choices
   observe({
-    date_choices <- sort(unique(sewage_spills_watershed$issuance_date))
-    updateSelectInput(session, "startDate", choices = date_choices, selected = min_date)
-    updateSelectInput(session, "endDate", choices = date_choices, selected = max_date)
+    updateSelectInput(session, "startDate", choices = 2009:2024)
+    updateSelectInput(session, "endDate", choices = 2009:2024, selected = 2024)
   })
   
-  # Reactive expression for filtering based on start and end date input
-  date_filtered_data <- reactive({
-    req(input$startDate, input$endDate)  # Ensure that input$startDate and input$endDate are available
-    sewage_spills_watershed %>%
-      filter(issuance_date >= as.Date(input$startDate) & issuance_date <= as.Date(input$endDate))
-  })
-  
-  # Observe the date-filtered data to update island choices
+  # Populate island choices for selectInput
   observe({
-    filtered_data <- date_filtered_data()
-    island_choices <- unique(filtered_data$island)
+    island_choices <- unique(sewage_spills_watershed$island)
     updateSelectInput(session, "islandSelect", choices = island_choices)
   })
   
-  # Observe the selected islands to update watershed choices
+  # Populate watershed choices for selectInput
   observe({
-    filtered_data <- date_filtered_data()
     selected_islands <- input$islandSelect
-    watershed_choices <- unique(filtered_data$wuname[!is.na(filtered_data$wuname) & filtered_data$island %in% selected_islands])
-    watershed_choices <- sort(watershed_choices)
+    watershed_choices <- unique(sewage_spills_watershed$wuname[!is.na(sewage_spills_watershed$wuname) & sewage_spills_watershed$island %in% selected_islands])
+    watershed_choices <- sort(watershed_choices)  
     updateSelectInput(session, "watershedSelect", choices = watershed_choices)
   })
   
-  # Reactive expression for filtering based on island and watershed input
+  # Reactive expression for filtering based on date, island, and watershed input
   filtered_data <- reactive({
-    filtered <- date_filtered_data()
-    selected_islands <- input$islandSelect
-    selected_watersheds <- input$watershedSelect
+    # Filter by date
+    start_date <- as.numeric(input$startDate)
+    end_date <- as.numeric(input$endDate)
     
-    # Filter by selected islands
+    filtered <- sewage_spills_watershed
+    
+    if (!is.null(start_date) && !is.null(end_date)) {
+      filtered <- filtered %>% 
+        filter(year >= start_date, year <= end_date)
+    }
+    
+    # Filter by selected island
+    selected_islands <- input$islandSelect
     if (!is.null(selected_islands) && length(selected_islands) > 0) {
       filtered <- filtered %>% 
         filter(island %in% selected_islands)
     }
     
     # Filter by selected watersheds
+    selected_watersheds <- input$watershedSelect
     if (!is.null(selected_watersheds) && length(selected_watersheds) > 0) {
       filtered <- filtered %>% 
         filter(wuname %in% selected_watersheds)
@@ -234,7 +226,31 @@ server <- function(input, output, session) {
     return(filtered)
   })
   
-  
+    #Leaflet Map
+    output$mapLocation <- renderLeaflet({
+      leaflet() %>%
+        setView(lng = -157.8583, lat = 21.3069, zoom = 7) %>%
+        addTiles(urlTemplate = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png") %>%
+        addCircleMarkers(
+          data = filtered_data(),
+          clusterOptions = markerClusterOptions(),
+          popup = paste0(
+            "<div class='custom-popup'>",
+            "<h4>Sewage Spill Details</h4>",
+            "<p><strong>Title:</strong> ", filtered_data()$title, "</p>",
+            "<p><strong>Date Issued:</strong> ", filtered_data()$issuance_date, "</p>",
+            "<p><strong>Date Cancelled:</strong> ", filtered_data()$cancellation_date, "</p>",
+            "<p><strong>Location:</strong> ", filtered_data()$location_name, "</p>",
+            "<p><strong>Gallons Spilled:</strong> ", filtered_data()$volume_gallons, "</p>",
+            "<p><strong>Watershed:</strong> ", filtered_data()$wuname, "</p>",
+            "<p><strong>County:</strong> ", filtered_data()$county, "</p>",
+            "</div>"
+          ),
+          color = ~colorFactor("magma", unique(filtered_data()$volume_gallons))(rev(volume_gallons)),
+          fillOpacity = 0.8
+        ) 
+    })
+    
   # Location tab
   output$spilltableLocation <- DT::renderDataTable({
     data_to_display <- filtered_data() %>%
