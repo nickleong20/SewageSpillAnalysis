@@ -1,4 +1,4 @@
-**Readme: Sewage Spill Analysis App**
+**Sewage Spill Analysis App**
 
 Welcome to the Sewage Overflow Spill Analysis App repository! This application provides an interactive platform for analyzing historical sewage overflow spills across the Hawaiian islands. Users can explore patterns, trends, and summary statistics related to sewage spills, aiding in decision-making for infrastructure upgrades and environmental management.
 
