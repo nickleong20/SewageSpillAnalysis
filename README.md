@@ -18,6 +18,14 @@ Welcome to the Sewage Overflow Spill Analysis App repository! This application p
 2. Open the R Shiny application file (`app.R`) in RStudio or your preferred R environment.
 3. Run the application to explore sewage spill data interactively.
 
+**Updating the Dataset:**
+To update the dataset used by the Sewage Spill Analysis App:
+
+1. Navigate to the `data` folder in the repository.
+2. Update the file `UPDATED_sewage_spill_locations(Sheet1).csv` with the latest sewage spill data.
+3. Save the updated file in the same location with the same filename to ensure the application uses the new data.
+
+
 **Contributing:**
 Contributions, bug reports, and feature requests are welcome! Please feel free to submit issues or pull requests to improve the functionality and usability of the application.
 
