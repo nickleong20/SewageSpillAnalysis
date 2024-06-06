@@ -32,11 +32,11 @@ sewage_spills <- clean_names(sewage_spills)
 
 # Read the shapefile
 # Update the file path to the shapefile
-watersheds_without_islands <- st_read("data/Watersheds/Watersheds.shp")
-islands <- st_read("data/2020_Census_County_Boundaries/2020_Census_County_Boundaries.shp")
+watersheds_without_counties <- st_read("data/Watersheds/Watersheds.shp")
+county <- st_read("data/2020_Census_County_Boundaries/2020_Census_County_Boundaries.shp")
 
 # Perform spatial join
-watersheds <- st_intersection(watersheds_without_islands, islands)
+watersheds <- st_intersection(watersheds_without_counties, county)
 
 # Convert sewage spills to spatial data frame
 sewage_spills_sf <- st_as_sf(sewage_spills, coords = c("longitude", "latitude"), crs = st_crs(watersheds))
@@ -99,7 +99,7 @@ ui <- bs4DashPage(
         title = "Hawai'i Sewage Spill Locations",
         h3(
           tags$div(
-            "Welcome to the Sewage Overflow Spill Analysis App! Use this tool to explore historical sewage overflow spill data across the Hawaiian Islands. Filter by date, island, and watershed to see detailed locations, summary statistics, and trends. Click on map markers for specific spill details and download data tables for further analysis.
+            "Welcome to the Sewage Overflow Spill Analysis App! Use this tool to explore historical sewage overflow spill data across the Hawaiian Islands. Filter by date, county, and watershed to see detailed locations, summary statistics, and trends. Click on map markers for specific spill details and download data tables for further analysis.
 
 Data Source: Hawaiʻi State Department of Health Environmental Health Portal ",
             style = "font-size: 14px;"
@@ -133,7 +133,7 @@ Data Source: Hawaiʻi State Department of Health Environmental Health Portal ",
     fluidRow(
       column(
         width = 6,
-        selectInput("islandSelect", "Select Island", choices = NULL, multiple = TRUE)
+        selectInput("countySelect", "Select County", choices = NULL, multiple = TRUE)
       ),
       column(
         width = 6,
@@ -190,21 +190,21 @@ server <- function(input, output, session) {
     updateSelectInput(session, "endDate", choices = 2009:2024, selected = 2024)
   })
   
-  # Populate island choices for selectInput
+  # Populate county choices for selectInput
   observe({
-    island_choices <- unique(sewage_spills_watershed$island)
-    updateSelectInput(session, "islandSelect", choices = island_choices)
+    county_choices <- unique(sewage_spills_watershed$county)
+    updateSelectInput(session, "countySelect", choices = county_choices)
   })
   
   # Populate watershed choices for selectInput
   observe({
-    selected_islands <- input$islandSelect
-    watershed_choices <- unique(sewage_spills_watershed$wuname[!is.na(sewage_spills_watershed$wuname) & sewage_spills_watershed$island %in% selected_islands])
+    selected_counties <- input$countySelect
+    watershed_choices <- unique(sewage_spills_watershed$wuname[!is.na(sewage_spills_watershed$wuname) & sewage_spills_watershed$county %in% selected_counties])
     watershed_choices <- sort(watershed_choices)  
     updateSelectInput(session, "watershedSelect", choices = watershed_choices)
   })
   
-  # Reactive expression for filtering based on date, island, and watershed input
+  # Reactive expression for filtering based on date, county, and watershed input
   filtered_data <- reactive({
     # Filter by date
     start_date <- as.numeric(input$startDate)
@@ -217,11 +217,11 @@ server <- function(input, output, session) {
         filter(year >= start_date, year <= end_date)
     }
     
-    # Filter by selected island
-    selected_islands <- input$islandSelect
-    if (!is.null(selected_islands) && length(selected_islands) > 0) {
+    # Filter by selected county
+    selected_counties <- input$countySelect
+    if (!is.null(selected_counties) && length(selected_counties) > 0) {
       filtered <- filtered %>% 
-        filter(island %in% selected_islands)
+        filter(county %in% selected_counties)
     }
     
     # Filter by selected watersheds
@@ -265,7 +265,7 @@ server <- function(input, output, session) {
   # Location tab
   output$spilltableLocation <- DT::renderDataTable({
     data_to_display <- filtered_data() %>%
-      select(title, issuance_date, cancellation_date, location_name, wuname, volume_gallons, advisement, county, cause, year, latitude, longitude, island) %>%
+      select(title, issuance_date, cancellation_date, location_name, wuname, volume_gallons, advisement, county, cause, year, latitude, longitude, county) %>%
       rename(
         "Title" = title,
         "Date Issued" = issuance_date,
@@ -275,7 +275,7 @@ server <- function(input, output, session) {
         "Gallons Spilled" = volume_gallons,
         "Advisement" = advisement,
         "Cause" = cause, 
-        "Island" = island,
+        "County" = county,
         "Watershed" = wuname,
         "County" = county, 
         "Latitude" = latitude,
