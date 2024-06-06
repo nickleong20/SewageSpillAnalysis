@@ -171,7 +171,7 @@ Data Source: Hawaiʻi State Department of Health Environmental Health Portal ",
         width = 12,
         # Data Table Box
         box(
-          title = "Plastic Data by Location",
+          title = "Spill Data by Location",
           style = "overflow-x: auto;",
           DT::dataTableOutput("spilltableLocation"),
           width = 12
